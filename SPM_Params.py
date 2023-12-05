@@ -15,7 +15,7 @@ NMC-Pouch cell
 """
 import numpy as np
 from numpy import random as rnd
-
+import scipy.optimize
 p={}
 
 
@@ -63,7 +63,7 @@ p['dr_n'] = p['R_s']/(p['nrn']-1)
 p['dr_p'] = p['R_s']/(p['nrp']-1)
 
 p['dt'] = 0.1
-p['Tf'] = 2500
+p['Tf'] = 4000
 p['N'] = int(np.floor(p['Tf']/p['dt']))
 
 #==============================================================================
@@ -372,50 +372,88 @@ def f_SPM(x,u,p):
     return f, V_cell, V_oc, SOC_n, SOC_p, i_s(cs_surf_n, c_surf_solv, L_sei, I, Tc)
 
 def set_sample(i_s_max,SOC_min,SOC_max,d):
+    f = 0
     #i_s_max: max absolute value of side-reaction current
     #d = {0: remain within interior of safe set, 1: border of safe set}
-    SOC = rnd.uniform(SOC_min,SOC_max)
-    cs_n_bulk0 = (SOC*(p['theta_100_n']-p['theta_0_n']) + p['theta_0_n'])*p['cs_max_n']
-    cs_p_bulk0 = (SOC*(p['theta_100_p']-p['theta_0_p']) + p['theta_0_p'])*p['cs_max_p']
-    
-    cs_n0 = np.zeros((p['nrn'],1))
-    sum_n = cs_n_bulk0
-    max_n = p['cs_max_n']
-    for i in reversed(range(1,p['nrn'])):
-        min_n = 1/(np.sum(p['A_bulk_n'][0,0:i+1]))*sum_n
-        cs_n0[i] = rnd.uniform(min_n, min(sum_n/p['A_bulk_n'][0,i], max_n))
-        max_n = cs_n0[i]
-        sum_n = sum_n - p['A_bulk_n'][0,i]*cs_n0[i]
-    cs_n0[0] = sum_n/p['A_bulk_n'][0,0]
+    while f == 0:
+        SOC = rnd.uniform(SOC_min,SOC_max)
+        cs_n_bulk0 = (SOC*(p['theta_100_n']-p['theta_0_n']) + p['theta_0_n'])*p['cs_max_n']
+        cs_p_bulk0 = (SOC*(p['theta_100_p']-p['theta_0_p']) + p['theta_0_p'])*p['cs_max_p']
+        
+        cs_n0 = np.zeros((p['nrn'],1))
+        sum_n = cs_n_bulk0
+        max_n = p['cs_max_n']
+        for i in reversed(range(1,p['nrn'])):
+            min_n = 1/(np.sum(p['A_bulk_n'][0,0:i+1]))*sum_n
+            cs_n0[i] = rnd.uniform(min_n, min(sum_n/p['A_bulk_n'][0,i], max_n))
+            max_n = cs_n0[i]
+            sum_n = sum_n - p['A_bulk_n'][0,i]*cs_n0[i]
+        cs_n0[0] = sum_n/p['A_bulk_n'][0,0]
 
-    cs_p0 = np.zeros((p['nrn'],1))
-    sum_p = cs_p_bulk0
-    max_p = p['cs_max_p']
-    for i in range(p['nrp']-1):
-        min_p = 1/(np.sum(p['A_bulk_p'][0,i:])) *sum_p
-        cs_p0[i] = rnd.uniform(min_p, min(sum_p/p['A_bulk_p'][0,i],max_p))
-        max_p = cs_p0[i]
-        sum_p = sum_p - p['A_bulk_p'][0,i]*cs_p0[i]
-    cs_p0[-1] = sum_p/p['A_bulk_p'][0,-1]
-    
-    Ts0 = rnd.uniform(20,35)
-    Tc0 = rnd.uniform(20,35)
-    L_sei0 = rnd.uniform(5e-9,5e-8)
-    Q0 = rnd.uniform(0,13)
-    
-    c_solv_max = i_s_max/(2*p['F']*p['kf'])/(cs_n0[-1]**2)
-    c_solv0 = np.zeros((p['n_sei'],1))
-    if d == 0:
-        c_solv0[0] = rnd.uniform(0,c_solv_max)
-    else:
-        c_solv0[0] = c_solv_max
+        cs_p0 = np.zeros((p['nrn'],1))
+        sum_p = cs_p_bulk0
+        max_p = p['cs_max_p']
+        for i in range(p['nrp']-1):
+            min_p = 1/(np.sum(p['A_bulk_p'][0,i:])) *sum_p
+            cs_p0[i] = rnd.uniform(min_p, min(sum_p/p['A_bulk_p'][0,i],max_p))
+            max_p = cs_p0[i]
+            sum_p = sum_p - p['A_bulk_p'][0,i]*cs_p0[i]
+        cs_p0[-1] = sum_p/p['A_bulk_p'][0,-1]
+        
+        Ts0 = rnd.uniform(20,35)
+        Tc0 = rnd.uniform(20,35)
+        L_sei0 = rnd.uniform(5e-9,5e-8)
+        Q0 = rnd.uniform(0,13)
+        
+        c_solv_max = i_s_max/(2*p['F']*p['kf'])/(cs_n0[-1]**2)
+        c_solv0 = np.zeros((p['n_sei'],1))
+        if d == 0:
+            c_solv0[0] = rnd.uniform(0,c_solv_max)
+        else:
+            c_solv0[0] = c_solv_max
 
-    for i in range(1,p['n_sei']):
-        c_solv0[i] = rnd.uniform(0,c_solv0[i-1])
+        for i in range(1,p['n_sei']):
+            c_solv0[i] = rnd.uniform(0,c_solv0[i-1])
+        f=1
+        # LHS = 1/(p['A']*p['L_n']*p['F']*p['a_s_n']*p['dr_n'])*(2+2/(p['nrn']-1))*(p['a_s_n']*p['L_n']*p['A']*2*p['F']*p['kf'])*cs_n0[-1]**2 * c_solv0[1]
+        # RHS = 2*D_s_n(Tc0)/p['dr_n']**2 * (cs_n0[-2] - cs_n0[-1])
+        # if  LHS>RHS:
+        #     f=1
         
     return np.vstack((cs_n0,cs_p0,Ts0,Tc0,L_sei0,Q0,c_solv0))
     
     
-    
+def OneC(p):
+    # negative electrode
+    cs_n_bulk0 = p['theta_0_n']*p['cs_max_n']
+    cs_n_bulk100 = p['theta_100_n']*p['cs_max_n']
+    diff_mat_n = np.zeros((p['nrn']-1,p['nrn']))
+    for i in range(p['nrn']-1):
+        diff_mat_n[i,i:i+2] = np.array([1., -1.])
+
+    c_n_100 = np.vstack((np.zeros((p['nrn']-1,1)), -1))
+    c_n_0 = -c_n_100
+    cs_n_100 = scipy.optimize.linprog(c_n_100, A_ub=diff_mat_n, b_ub = np.zeros((p['nrn']-1,1)), A_eq = p['A_bulk_n'], b_eq = cs_n_bulk100, bounds=(0., p['cs_max_n']))['x'][-1]
+    cs_n_0 = scipy.optimize.linprog(c_n_0, A_ub=diff_mat_n, b_ub = np.zeros((p['nrn']-1,1)), A_eq = p['A_bulk_n'], b_eq = cs_n_bulk0, bounds=(0., p['cs_max_n']))['x'][-1]
+
+    dcs_n = cs_n_100 - cs_n_0
+    I_n = p['epsilon_s_n'] * p['L_n'] * p['A'] * dcs_n * p['F']/3600
+
+    # positive electrode
+    cs_p_bulk0 = p['theta_0_p']*p['cs_max_p']
+    cs_p_bulk100 = p['theta_100_p']*p['cs_max_p']
+
+    diff_mat_p = -diff_mat_n
+    c_p_0 = np.vstack((np.zeros((p['nrp']-1,1)), -1))
+    c_p_100 = -c_p_0
+
+    cs_p_100 = scipy.optimize.linprog(c_p_100, A_ub=diff_mat_p, b_ub = np.zeros((p['nrp']-1,1)), A_eq = p['A_bulk_p'], b_eq = cs_p_bulk100, bounds=(11570., p['cs_max_p']))['x'][-1]
+    cs_p_0 = scipy.optimize.linprog(c_p_0, A_ub=diff_mat_p, b_ub = np.zeros((p['nrp']-1,1)), A_eq = p['A_bulk_p'], b_eq = cs_p_bulk0, bounds=(11570., p['cs_max_p']))['x'][-1]
+
+    dcs_p = cs_p_0 - cs_p_100
+    I_p = p['epsilon_s_p'] * p['L_p'] * p['A'] * dcs_p * p['F']/3600
+
+    I = min(I_n,I_p)
+    return I
     
 
