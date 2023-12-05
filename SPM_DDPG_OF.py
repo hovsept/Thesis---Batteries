@@ -96,7 +96,7 @@ def eval_policy(policy, eval_episodes = 10):
     avg_MAX_i_s_vio = avg_i_s_vio
 
     print("---------------------------------------")
-    print(f"Evaluation over {eval_episodes} episodes: {avg_reward:.3f}")
+    print("Evaluation over {} episodes: {:.3f}".format(eval_episodes, avg_reward))
     print("---------------------------------------")
 
     return avg_reward, avg_MAX_temp_vio, avg_MAX_volt_vio, avg_chg_time
