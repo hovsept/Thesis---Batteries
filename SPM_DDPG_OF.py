@@ -140,7 +140,7 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
         soc = f_SOC_p(cs_p)
         soc0 = soc
         V = f_V_cell(cs_surf_p,cs_surf_n,Tc,0,0) #Assuming I(0)= 0
-        norm_out = normalize_outputs(soc,V,Tc)
+        norm_out = normalize_outputs(soc[0],V,Tc)
 
         agent.reset()
 
@@ -270,7 +270,7 @@ def policy_heatmap(agent, T = 25):
     plt.title('RL Policy, T = ' + str(T))
     plt.xlabel('SOC')
     plt.ylabel('Voltage (V)')
-    plt.show()
+    plt.show(block=True)
     return ACTION
 #-------------------------------------------------------------------------------------
 #MAIN
@@ -301,7 +301,7 @@ total_returns_list_with_exploration=[]
 #assign the agent which is a ddpg
 agent = Agent(state_size=3, action_size=1, random_seed=i_training)  # the number of state is 496.
 
-start_episode = 30
+start_episode = 60
 if start_episode !=0:
     agent.actor_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_'+str(start_episode)+'.pth'))
     agent.actor_optimizer.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_optimizer_'+str(start_episode)+'.pth'))

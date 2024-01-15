@@ -20,9 +20,9 @@ BUFFER_SIZE = int(1e5)  # replay buffer size
 BATCH_SIZE = 64        # minibatch size
 GAMMA = 0.99           # discount factor
 TAU = 1e-3             # for soft update of target parameters
-LR_ACTOR = 5e-4        # learning rate of the actor 
-LR_CRITIC = 5e-3        # learning rate of the critic
-WEIGHT_DECAY = 1.5        # L2 weight decay
+LR_ACTOR = 0.01        # learning rate of the actor 
+LR_CRITIC = 0.01        # learning rate of the critic
+WEIGHT_DECAY = 0.5        # L2 weight decay
 size_ac_lay_1=20
 size_ac_lay_2=20
 
@@ -155,7 +155,7 @@ class Agent():
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.01):
+    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.06):
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta
