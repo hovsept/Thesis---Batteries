@@ -33,7 +33,7 @@ settings['episodes_number_test']=10 # Number of testing.
 control_settings={}
 control_settings['references']={}
 control_settings['references']['soc']=0.9; 
-control_settings['max_charging_current'] = -3.0*OneC(p)
+control_settings['max_charging_current'] = -10.0*OneC(p)
 
 
 # constraints    
@@ -83,7 +83,7 @@ class SPM(discrete.DiscreteEnv):
 		
         r_temp = -5*abs(Tc - self.cont_sett['constraints']['temperature']['max']) if Tc > self.cont_sett['constraints']['temperature']['max'] else 0
         r_volt = -10*abs(V_cell-self.cont_sett['constraints']['voltage']['max']) if V_cell > self.cont_sett['constraints']['voltage']['max'] else 0
-        r_i_s = -10*abs(i_s-self.cont_sett['constraints']['i_s_n']['min']) if i_s < self.cont_sett['constraints']['i_s_n']['min'] else 0
+        r_i_s = -500*abs(i_s) 
         r_step = -0.01
         reward = r_temp + r_i_s + r_volt + r_step
 
@@ -99,7 +99,7 @@ class SPM(discrete.DiscreteEnv):
     
     def reset(self):
         self.episode_step = 0
-        return set_sample(self.cont_sett['constraints']['i_s_n']['min'],0,0.3,0)
+        return sample_IC(p, SOC_min = 0., SOC_max = 0.1)
     
 
     

@@ -18,33 +18,27 @@ from functools import *
 
 from ddpg_agent import Agent
 
-# x0 = sample_IC(p)
-x0 = np.array([2927,2927,2927,25611,25611,25611,25,25,5e-9,13,4800,4800,4800]).reshape((13,1))
-# x0 = set_sample(2.5e-5,0,0.3,0)
-cs_n0, cs_p0, Ts0, Tc0, L_sei0, Q0, c_solv0, c_surf_solv0, cs_surf_n0, cs_surf_p0, T_amb = state_convert(x0,p)
+x0 = sample_IC(p)
+# x0 = np.array([2927,2927,2927,25611,25611,25611,25,25,5e-9,13,4800,4800,4800]).reshape((13,1))
+# x0 = set_sample(2.5e-5,0.9,1.0,0)
+# cs_n0, cs_p0, Ts0, Tc0, L_sei0, Q0, c_solv0, c_surf_solv0, cs_surf_n0, cs_surf_p0, T_amb = state_convert(x0,p)
 
-def SPM(x0,p,input_mode = 2):
-     #0: open loop, 1: feedback, 2: CC-CV, 3: DDPG Actor Output Feedback
+def SPM(x0,p,input_mode = 3, start_episode = 30):
+     #0: open loop, 1: feedback, 2: CC-CV, 3: DDPG Actor Output Feedback, 4: Discharge
 
     out = {}
-    out['t'] = np.arange(0,p['Tf'],p['dt'])
 
-    out['I_cell'] = np.zeros((len(out['t'])))
+    out['I_cell'] = np.zeros((p['N']))
     if input_mode == 0:
         out['I_cell'] = -OneC(p)*np.ones((len(out['t'],)))
     elif input_mode==1:
         out['V_ref'] = 4.1
         out['SOC_ref'] = 0.9
         out['I_cell'][0] = 0
-    elif input_mode==2:
-        out['V_max'] = 4.1
-        out['I_max'] = 1.5*OneC(p)
-        out['I_min'] = 0.1
     elif input_mode == 3:
         i_training = 0
         agent = Agent(state_size=3, action_size=1, random_seed=i_training)  # the number of state is 496.
 
-        start_episode = 80
         agent.actor_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_'+str(start_episode)+'.pth',map_location=torch.device('cpu')))
         agent.actor_optimizer.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_optimizer_'+str(start_episode)+'.pth',map_location=torch.device('cpu')))
         agent.critic_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_critic_'+str(start_episode)+'.pth',map_location=torch.device('cpu')))
@@ -63,31 +57,37 @@ def SPM(x0,p,input_mode = 2):
         def denormalize_input(input_value, min_OUTPUT_value, max_OUTPUT_value):
             output_value=(1+input_value)*(max_OUTPUT_value-min_OUTPUT_value)/2+min_OUTPUT_value
             return output_value
+        
+    elif input_mode == 4:
+            p['I_discharge'] = OneC(p)
 
         
         
     n = p['nrn']+p['nrp']+p['n_sei']+4
-    out['x'] = np.zeros((n,len(out['t'])))
+    out['x'] = np.zeros((n,p['N']))
     out['x'][:,0] = x0.reshape((n,))
-    out['V_cell'] = np.zeros((len(out['t'])-1,))
-    out['V_oc'] = np.zeros((len(out['t'])-1,))
-    out['SOC_n'] = np.zeros((len(out['t'])-1,))
-    out['SOC_p'] = np.zeros((len(out['t'])-1,))
-    out['i_s'] = np.zeros((len(out['t'])-1,))
-    out['is_CV'] = np.zeros((len(out['t']),))
+    out['V_cell'] = np.zeros((p['N']-1,))
+    out['V_oc'] = np.zeros((p['N']-1,))
+    out['SOC_n'] = np.zeros((p['N']-1,))
+    out['SOC_p'] = np.zeros((p['N']-1,))
+    out['i_s'] = np.zeros((p['N']-1,))
+    out['is_CV'] = np.zeros((p['N'],))
 
     if input_mode ==2:
-        out['I_cell'][0] = -out['I_max']
+        out['I_cell'][0] = -p['I_max']
+    elif input_mode == 4:
+        out['I_cell'][0] = p['I_discharge']
 
-    for i in tqdm(range(p['N']-1)):
+    # for i in tqdm(range(p['N']-1)):
+    for i in range(p['N']-1):
         f, out['V_cell'][i], out['V_oc'][i], out['SOC_n'][i], out['SOC_p'][i], out['i_s'][i]  = f_SPM(out['x'][:,i],out['I_cell'][i],p)
         out['x'][:,i+1] = out['x'][:,i] + p['dt']*f.reshape((13,))
         if input_mode==1:
             out['I_cell'][i+1] = 0*(out['V_cell'][i] - out['V_ref']) + 0.8*(out['SOC_p'][i]-out['SOC_ref'])
         
         elif input_mode==2:
-            if out['V_cell'][i] < out['V_max'] and out['is_CV'][i] ==0:
-                out['I_cell'][i+1] = -out['I_max']
+            if out['V_cell'][i] < p['V_max'] and out['is_CV'][i] ==0:
+                out['I_cell'][i+1] = -p['I_max']
             elif out['SOC_p'][i] >= 1:
                 out['I_cell'][i] = 0
             else:
@@ -96,23 +96,46 @@ def SPM(x0,p,input_mode = 2):
                 
                 f_V_cell_partial = partial(f_V_cell, cs_surf_p,cs_surf_n,Tc, L_sei=L_sei)
                 def f_V_I(I):
-                    return f_V_cell_partial(I)-out['V_max']
+                    return f_V_cell_partial(I)-p['V_max']
                 
                 out['I_cell'][i+1] = scipy.optimize.fsolve(f_V_I, out['I_cell'][i])
         
         elif input_mode==3:
             _, _, _, Tc, _, _, _, _, _, _, _ = state_convert(out['x'][:,i+1],p)
             norm_out = normalize_outputs(out['SOC_p'][i], out['V_cell'][i], Tc)
-            action = agent.act(norm_out)
+            action = agent.act(norm_out, add_noise = False)
             out['I_cell'][i+1] = denormalize_input(action,min_OUTPUT_value,max_OUTPUT_value)
 
+        elif input_mode==4:
+            out['I_cell'][i+1] = p['I_discharge']
+            if out['SOC_n'][i]<=0.05 or out['SOC_p'][i]<=0.05:
+                out['t'] = np.arange(0,i*p['dt'],p['dt'])
+                break
+
+        if out['SOC_n'][i]>=0.99 or out['SOC_p'][i]>=0.99:
+            out['t'] = np.arange(0,i*p['dt'],p['dt'])
+            break
     
+    if out['SOC_n'][i]<0.99 and out['SOC_p'][i]<0.99 and input_mode != 4:
+        out['t'] = np.arange(0,p['Tf'],p['dt'])
+
+    out['I_cell'] = out['I_cell'][:len(out['t'])]
+    out['x'] = out['x'][:,:len(out['t'])]
+    out['x'][:,0] = x0.reshape((n,))
+    out['V_cell'] = out['V_cell'][:len(out['t'])-1]
+    out['V_oc'] = out['V_oc'][:len(out['t'])-1]
+    out['SOC_n'] = out['SOC_n'][:len(out['t'])-1]
+    out['SOC_p'] = out['SOC_p'][:len(out['t'])-1]
+    out['i_s'] = out['i_s'][:len(out['t'])-1]
+    out['is_CV'] = out['is_CV'][:len(out['t'])]
+
+    out['cs_n'], out['cs_p'], out['Ts'], out['Tc'], out['L_sei'], out['Q'],out['c_solv'], out['c_surf_solv'], out['cs_surf_n'], out['cs_surf_p'], out['T_amb'] = state_convert(out['x'], p)
     return out
 
-out = SPM(x0, p, input_mode=3)
+
+out = SPM(x0, p, input_mode=3, start_episode = 30)
 #Input Mode 0: open loop, 1: feedback, 2: CC-CV, 3: DDPG Actor Output Feedback
 
-out['cs_n'], out['cs_p'], out['Ts'], out['Tc'], out['L_sei'], out['Q'],out['c_solv'], out['c_surf_solv'], out['cs_surf_n'], out['cs_surf_p'], out['T_amb'] = state_convert(out['x'], p)
 
 
 plt.close('all')
@@ -245,81 +268,6 @@ plt.grid()
 plt.tight_layout()
 plt.show()
 
-###############################################################################
-# Partition Sequence Generation
-###############################################################################
-
-# part = {}
-
-# part['cs_n'] = np.matrix([[0, 5000, 12500, 23230],
-#                              [0, 5000, 12500, 23230],
-#                              [0, 5000, 12500, 23230]])
-
-# part['cs_p'] = np.matrix([[1.2e4, 1.8e4, 2.2e4, 27362],
-#                                [1.2e4, 1.8e4, 2.2e4, 27362],
-#                                [1.2e4, 1.8e4, 2.2e4, 27362]])
-
-# part['Ts'] = np.array([-273, 30, 35])
-# part['Tc'] = np.array([-273, 30, 35])
-# part['L_sei'] = np.array([5e-9, 5e-8, 5e-7, 5e-6])
-# part['Q'] = np.array([0, 5, 10, 13])
-
-# part['c_solv'] = np.matrix([[0, 4797, 4799, 4850],
-#                                [0, 4797, 4799, 4850],
-#                                [0, 4797, 4799, 4850]])
-
-# def assign_partition(x,part,p):
-#     n = len(x)
-#     s = []
-#     for i in range(0,p['nrn']): #cs_n
-#         for j in range(part['cs_n'].shape[1]-1):
-#             if x[i] >= part['cs_n'][i,j] and x[i] <= part['cs_n'][i,j+1]:
-#                 s.append(j)
-#                 break
-#     for i in range(p['nrn'],p['nrn']+p['nrp']): #cs_p
-#         for j in range(part['cs_p'].shape[1]-1):
-#             if x[i] >= part['cs_p'][i-p['nrn'],j] and x[i] <= part['cs_p'][i-p['nrn'],j+1]:
-#                 s.append(j)
-#                 break
-    
-#     i = p['nrn'] + p['nrp'] #Ts
-#     for j in range(part['Ts'].shape[0]):
-#         if x[i] >= part['Ts'][j] and x[i] <= part['Ts'][j+1]:
-#             s.append(j)
-#             break
-
-#     i = p['nrn'] + p['nrp'] + 1 #Tc
-#     for j in range(part['Tc'].shape[0]):
-#         if x[i] >= part['Tc'][j] and x[i] <= part['Tc'][j+1]:
-#             s.append(j)
-#             break
-
-#     i = p['nrn'] + p['nrp'] + 2 #L_sei
-#     for j in range(part['L_sei'].shape[0]):
-#         if x[i] >= part['L_sei'][j] and x[i] <= part['L_sei'][j+1]:
-#             s.append(j)
-#             break
-
-#     i = p['nrn'] + p['nrp'] + 3 #Q
-#     for j in range(part['Q'].shape[0]):
-#         if x[i] >= part['Q'][j] and x[i] <= part['Q'][j+1]:
-#             s.append(j)
-#             break
-
-#     for i in range(p['nrn'] + p['nrp'] + 4, n):
-#         for j in range(part['c_solv'].shape[1]-1):
-#             if x[i] >= part['c_solv'][i-p['nrn']-p['nrp']-4,j] and x[i] <= part['cs_n'][i-p['nrn']-p['nrp']-4,j+1]:
-#                 s.append(j)
-#                 break
-
-#     return s
-
-# out = SPM(x0, p, input_mode=2)
-# s = []
-# for i in range(out['x'].shape[1]):
-#     s.append(str(assign_partition(out['x'][:,i], part, p)))
-
-# s_unique = set(s)
 
 
 

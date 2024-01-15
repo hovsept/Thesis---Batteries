@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from collections import deque
 import matplotlib.pyplot as plt
-
+from tqdm import tqdm
 
 from ddpg_agent import Agent
 import pdb
@@ -96,8 +96,11 @@ def eval_policy(policy, eval_episodes = 10):
     avg_MAX_i_s_vio = avg_i_s_vio
 
     print("---------------------------------------")
-    print("Evaluation over {} episodes: {:.3f}".format(eval_episodes, avg_reward))
+    print("Evaluation over {} episodes: {:.3f}".format(eval_episodes, avg_reward[0]))
+    print("Average i_s: ", avg_i_s_vio)
     print("---------------------------------------")
+
+    policy_heatmap(policy, T = 25)
 
     return avg_reward, avg_MAX_temp_vio, avg_MAX_volt_vio, avg_chg_time
 
@@ -124,7 +127,7 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
 
     # Evaluate the initial (untrained) policy
     print('Evaluate first')
-    evaluations = [eval_policy(agent)]
+    # evaluations = [eval_policy(agent)]
     evaluations = []
     # ipdb.set_trace()
     # evaluations = []
@@ -135,6 +138,7 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
         x_t = env.reset()
         _, cs_p, _, Tc, _, _, _, _, cs_surf_n, cs_surf_p, _ = state_convert(x_t,p)
         soc = f_SOC_p(cs_p)
+        soc0 = soc
         V = f_V_cell(cs_surf_p,cs_surf_n,Tc,0,0) #Assuming I(0)= 0
         norm_out = normalize_outputs(soc,V,Tc)
 
@@ -187,10 +191,15 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
         print("Training", i_training)
         print("\rEpisode number", i_episode)
         print("reward: ", score)
+        print("Average Cell Current: ", sum(CURRENT_VEC)/len(CURRENT_VEC))
+        print("max i_s: ", min(I_S_VEC))
+        print("Initial SOC: ", soc0)
+        print("Simulation Time: ", env.episode_step*p['dt'])
+
 
         scores_list.append(score)
 
-        if (i_episode % settings['periodic_test']) == 0 and i_episode>10 :
+        if (i_episode % settings['periodic_test']) == 0:
         #save the checkpoint for actor, critic and optimizer (for loading the agent)
             checkpoints_list.append(i_episode)
             try:
@@ -203,7 +212,7 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
             torch.save(agent.actor_optimizer.state_dict(), 'results/SPM_training_results/training'+str(i_training)+'/episode'+str(i_episode)+'/checkpoint_actor_optimizer_'+str(i_episode)+'.pth')
             torch.save(agent.critic_optimizer.state_dict(), 'results/SPM_training_results/training'+str(i_training)+'/episode'+str(i_episode)+'/checkpoint_critic_optimizer_'+str(i_episode)+'.pth')
 
-        if (i_episode % settings['periodic_test']) == 0 :
+        if (i_episode % settings['periodic_test']) == 0 and i_episode>0:
             # Perform evaluation test
             evaluations.append(eval_policy(agent))
             try:
@@ -215,6 +224,54 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
 
     return scores_list, checkpoints_list
 
+#-------------------------------------------------------------------------------------
+#Policy Heatmap Illustration
+
+def policy_heatmap(agent, T = 25):
+    print("------------------------------------------------")
+    print("Generating Heatmap of Policy with T = "+ str(T))
+    print("------------------------------------------------")
+
+    SOC_grid = np.linspace(0,1,10)
+    V_grid = np.linspace(3.7,4.3,10)
+
+    ACTION = np.zeros((len(SOC_grid)))
+
+    for V in tqdm(V_grid):
+        ACTION_I = np.array([])
+        for soc in SOC_grid:
+
+            norm_out = normalize_outputs(soc,V,T)
+            action = agent.act(norm_out, add_noise = False)
+            applied_action = denormalize_input(action, env.action_space().low[0], env.action_space().high[0])
+
+            ACTION_I = np.hstack((ACTION_I, applied_action))
+
+        ACTION = np.vstack((ACTION_I, ACTION))
+
+    ACTION = ACTION[:-1]
+
+    nx = SOC_grid.shape[0]
+    no_labels_x = nx # how many labels to see on axis x
+    step_x = int(nx / (no_labels_x - 1)) # step between consecutive labels
+    x_positions = np.arange(0,nx,step_x) # pixel count at label position
+
+    ny = V_grid.shape[0]
+    no_labels_y = ny # how many labels to see on axis x
+    step_y = int(ny / (no_labels_y - 1)) # step between consecutive labels
+    y_positions = np.arange(0,ny,step_x) # pixel count at label position
+
+
+    plt.imshow(ACTION, interpolation='nearest')
+    plt.colorbar()
+    plt.xticks(x_positions, np.trunc(100*SOC_grid)/100)
+    plt.yticks(y_positions, np.trunc(100*np.flip(V_grid))/100)
+    plt.tight_layout()
+    plt.title('RL Policy, T = ' + str(T))
+    plt.xlabel('SOC')
+    plt.ylabel('Voltage (V)')
+    plt.show()
+    return ACTION
 #-------------------------------------------------------------------------------------
 #MAIN
 
@@ -244,11 +301,12 @@ total_returns_list_with_exploration=[]
 #assign the agent which is a ddpg
 agent = Agent(state_size=3, action_size=1, random_seed=i_training)  # the number of state is 496.
 
-start_episode = 0
-agent.actor_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_'+str(start_episode)+'.pth'))
-agent.actor_optimizer.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_optimizer_'+str(start_episode)+'.pth'))
-agent.critic_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_critic_'+str(start_episode)+'.pth'))
-agent.critic_optimizer.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_critic_optimizer_'+str(start_episode)+'.pth'))
+start_episode = 30
+if start_episode !=0:
+    agent.actor_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_'+str(start_episode)+'.pth'))
+    agent.actor_optimizer.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_optimizer_'+str(start_episode)+'.pth'))
+    agent.critic_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_critic_'+str(start_episode)+'.pth'))
+    agent.critic_optimizer.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_critic_optimizer_'+str(start_episode)+'.pth'))
 
 # call the function for training the agent
 returns_list, checkpoints_list = ddpg(n_episodes=settings['number_of_training_episodes'], i_training=i_training, start_episode=start_episode)
@@ -260,6 +318,9 @@ with open("results/SPM_training_results/total_returns_list_with_exploration.txt"
 
 with open("results/SPM_training_results/checkpoints_list.txt", "wb") as fp:   #Pickling
    pickle.dump(checkpoints_list, fp)
+
+ACTION = policy_heatmap(agent, T=25)
+
 
 
 
