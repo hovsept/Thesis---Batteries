@@ -50,7 +50,7 @@ def eval_policy(policy, eval_episodes = 10):
         _, cs_p, _, Tc, _, _, _, _, cs_surf_n, cs_surf_p, _ = state_convert(x_t,p)
         soc = f_SOC_p(cs_p)
         V = f_V_cell(cs_surf_p,cs_surf_n,Tc,0,0) #Assuming I(0)= 0
-        norm_out = normalize_outputs(soc,V,Tc)
+        norm_out = normalize_outputs(soc[0][0],V[0],Tc[0])
 
         ACTION_VEC = []
         T_VEC = []
@@ -140,7 +140,7 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
         soc = f_SOC_p(cs_p)
         soc0 = soc
         V = f_V_cell(cs_surf_p,cs_surf_n,Tc,0,0) #Assuming I(0)= 0
-        norm_out = normalize_outputs(soc[0],V,Tc)
+        norm_out = normalize_outputs(soc[0][0],V[0],Tc[0])
 
         agent.reset()
 
@@ -193,6 +193,7 @@ def ddpg(n_episodes = 3000, i_training = 1, start_episode = 0):
         print("reward: ", score)
         print("Average Cell Current: ", sum(CURRENT_VEC)/len(CURRENT_VEC))
         print("max i_s: ", min(I_S_VEC))
+        print("max voltage: ", max(V_VEC))
         print("Initial SOC: ", soc0)
         print("Simulation Time: ", env.episode_step*p['dt'])
 
@@ -301,7 +302,7 @@ total_returns_list_with_exploration=[]
 #assign the agent which is a ddpg
 agent = Agent(state_size=3, action_size=1, random_seed=i_training)  # the number of state is 496.
 
-start_episode = 200
+start_episode = 300
 if start_episode !=0:
     agent.actor_local.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_'+str(start_episode)+'.pth'))
     agent.actor_optimizer.load_state_dict(torch.load('results/SPM_training_results/training'+str(i_training)+'/episode'+str(start_episode)+'/checkpoint_actor_optimizer_'+str(start_episode)+'.pth'))

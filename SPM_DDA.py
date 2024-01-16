@@ -18,7 +18,7 @@ def trajectory(x0,p, H):
     p['N'] = H+2
     p['Tf'] = (p['N']-1)*p['dt']
     #0: open loop, 1: feedback, 2: CC-CV, 3: DDPG Actor Output Feedback, 4: Discharge
-    out = SPM(x0,p,input_mode=3, start_episode=30)
+    out = SPM(x0,p,input_mode=3, start_episode=300)
     traj = np.vstack((out['SOC_p'],out['i_s']))
     while traj.shape[-1]<H:
         traj_x = np.zeros((traj.shape[0], traj.shape[1]+1))

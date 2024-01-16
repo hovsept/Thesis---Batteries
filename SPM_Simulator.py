@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import scipy.optimize
 import torch
 from functools import *
+from settings import *
 
 # import sys
 # sys.path.append('RL-Batt-DDPG-main\OutputFeedback_RL')
@@ -51,7 +52,7 @@ def SPM(x0,p,input_mode = 3, start_episode = 30):
             norm_output = np.array([norm_soc, norm_voltage, norm_temperature])
             return norm_output
 
-        min_OUTPUT_value = -3*OneC(p)
+        min_OUTPUT_value = control_settings['max_charging_current']
         max_OUTPUT_value = 0
     # compute actual action from normalized action 
         def denormalize_input(input_value, min_OUTPUT_value, max_OUTPUT_value):
