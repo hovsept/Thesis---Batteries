@@ -19,7 +19,7 @@ def hidden_init(layer):
 class Actor(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size, action_size, seed, fc1_units=100, fc2_units=75):
+    def __init__(self, state_size, action_size, seed, fc1_units=10, fc2_units=5):
         """Initialize parameters and build model.
         Params
         ======
@@ -46,13 +46,13 @@ class Actor(nn.Module):
         # ipdb.set_trace()
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        return torch.tanh(0.01*self.fc3(x))
+        return torch.tanh(self.fc3(x))
 
 
 class Critic(nn.Module):
     """Critic (Value) Model."""
 
-    def __init__(self, state_size, action_size, seed, fcs1_units=100, fc2_units=75):
+    def __init__(self, state_size, action_size, seed, fcs1_units=10, fc2_units=5):
         """Initialize parameters and build model.
         Params
         ======

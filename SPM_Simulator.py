@@ -9,10 +9,14 @@ import numpy as np
 from SPM_Params import *
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+mpl.rcParams.update(mpl.rcParamsDefault)
+
 import scipy.optimize
 import torch
 from functools import *
 from settings import *
+
 
 # import sys
 # sys.path.append('RL-Batt-DDPG-main\OutputFeedback_RL')
@@ -139,135 +143,135 @@ out = SPM(x0, p, input_mode=3, start_episode = 30)
 
 
 
-plt.close('all')
-plt.rcParams['text.usetex'] = True
+# plt.close('all')
+# plt.rcParams['text.usetex'] = True
 
-###############################################################################
-# Surface Concentrations
-###############################################################################
+# ###############################################################################
+# # Surface Concentrations
+# ###############################################################################
 
-plt.figure(1)
-plt.subplot(2,1,1)
-plt.plot(out['t'][:],out['cs_surf_n'])
-plt.ylabel(r'$cs_n^{surf} [mol.m^{-3}]$')
-plt.title('Surface Concentrations')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.figure(1)
+# plt.subplot(2,1,1)
+# plt.plot(out['t'][:],out['cs_surf_n'])
+# plt.ylabel(r'$cs_n^{surf} [mol.m^{-3}]$')
+# plt.title('Surface Concentrations')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.subplot(2,1,2)
-plt.plot(out['t'][:],out['cs_surf_p'])
-plt.ylabel(r'$cs_p^{surf} [mol.m^{-3}]$')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.subplot(2,1,2)
+# plt.plot(out['t'][:],out['cs_surf_p'])
+# plt.ylabel(r'$cs_p^{surf} [mol.m^{-3}]$')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
 
-###############################################################################
-# Temperatures
-###############################################################################
+# ###############################################################################
+# # Temperatures
+# ###############################################################################
 
-plt.figure(2)
-plt.subplot(2,1,1)
-plt.plot(out['t'][:],out['Tc'])
-plt.ylabel(r'$T_c [^\circ C]$')
-plt.title('Core and Surface Temperatures')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.figure(2)
+# plt.subplot(2,1,1)
+# plt.plot(out['t'][:],out['Tc'])
+# plt.ylabel(r'$T_c [^\circ C]$')
+# plt.title('Core and Surface Temperatures')
+# plt.xlabel('time [s]')
+# plt.grid()
 
 
-plt.subplot(2,1,2)
-plt.plot(out['t'][:],out['Ts'])
-plt.ylabel(r'$T_s [^\circ C]$')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.subplot(2,1,2)
+# plt.plot(out['t'][:],out['Ts'])
+# plt.ylabel(r'$T_s [^\circ C]$')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
 
-###############################################################################
-# Side-Reaction Current and Surface Solvent Concentration
-###############################################################################
+# ###############################################################################
+# # Side-Reaction Current and Surface Solvent Concentration
+# ###############################################################################
 
-plt.figure(3)
-plt.subplot(2,1,1)
-plt.plot(out['t'][:-1],out['i_s'])
-plt.ylabel(r'$i_s [A.m^{-3}]$')
-plt.title('Side-Reaction Current and Solvent Concentration')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.figure(3)
+# plt.subplot(2,1,1)
+# plt.plot(out['t'][:-1],out['i_s'])
+# plt.ylabel(r'$i_s [A.m^{-3}]$')
+# plt.title('Side-Reaction Current and Solvent Concentration')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.subplot(2,1,2)
-plt.plot(out['t'][:],out['c_surf_solv'])
-plt.ylabel(r'$c_{solv}^{surf} [mol.m^{-3}]$')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.subplot(2,1,2)
+# plt.plot(out['t'][:],out['c_surf_solv'])
+# plt.ylabel(r'$c_{solv}^{surf} [mol.m^{-3}]$')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
 
-###############################################################################
-# SEI Thickness and Capacity
-###############################################################################
+# ###############################################################################
+# # SEI Thickness and Capacity
+# ###############################################################################
 
-plt.figure(4)
-plt.subplot(2,1,1)
-plt.plot(out['t'][:],out['L_sei'])
-plt.ylabel(r'$L_{sei} [m]$')
-plt.title('SEI Thickness and Battery Capacity')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.figure(4)
+# plt.subplot(2,1,1)
+# plt.plot(out['t'][:],out['L_sei'])
+# plt.ylabel(r'$L_{sei} [m]$')
+# plt.title('SEI Thickness and Battery Capacity')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.subplot(2,1,2)
-plt.plot(out['t'][:],out['Q'])
-plt.ylabel(r'$Q [Ah]$')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.subplot(2,1,2)
+# plt.plot(out['t'][:],out['Q'])
+# plt.ylabel(r'$Q [Ah]$')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
 
-###############################################################################
-# Cell Current and Cell Voltage
-###############################################################################
+# ###############################################################################
+# # Cell Current and Cell Voltage
+# ###############################################################################
 
-plt.figure(5)
-plt.subplot(2,1,1)
-plt.plot(out['t'][:],out['I_cell'])
-plt.ylabel(r'$I_{cell} [A]$')
-plt.title('Cell Current and Voltage')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.figure(5)
+# plt.subplot(2,1,1)
+# plt.plot(out['t'][:],out['I_cell'])
+# plt.ylabel(r'$I_{cell} [A]$')
+# plt.title('Cell Current and Voltage')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.subplot(2,1,2)
-plt.plot(out['t'][:-1],out['V_cell'])
-plt.ylabel(r'$V [V]$')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.subplot(2,1,2)
+# plt.plot(out['t'][:-1],out['V_cell'])
+# plt.ylabel(r'$V [V]$')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
 
-###############################################################################
-# SOC
-###############################################################################
+# ###############################################################################
+# # SOC
+# ###############################################################################
 
-plt.figure(6)
-plt.subplot(2,1,1)
-plt.plot(out['t'][:-1],out['SOC_n'])
-plt.ylabel(r'$SOC_n$')
-plt.title('State of Charge')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.figure(6)
+# plt.subplot(2,1,1)
+# plt.plot(out['t'][:-1],out['SOC_n'])
+# plt.ylabel(r'$SOC_n$')
+# plt.title('State of Charge')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.subplot(2,1,2)
-plt.plot(out['t'][:-1],out['SOC_p'])
-plt.ylabel(r'$SOC_p$')
-plt.xlabel('time [s]')
-plt.grid()
+# plt.subplot(2,1,2)
+# plt.plot(out['t'][:-1],out['SOC_p'])
+# plt.ylabel(r'$SOC_p$')
+# plt.xlabel('time [s]')
+# plt.grid()
 
-plt.tight_layout()
-plt.show()
+# plt.tight_layout()
+# plt.show()
 
 
 

@@ -54,8 +54,8 @@ class SPM(discrete.DiscreteEnv):
 		
         r_temp = -0.5*abs(Tc - self.cont_sett['constraints']['temperature']['max']) if Tc > self.cont_sett['constraints']['temperature']['max'] else 0
         r_volt = -0.05*abs(V_cell-self.cont_sett['constraints']['voltage']['max']) if V_cell > self.cont_sett['constraints']['voltage']['max'] else 0
-        r_i_s = -1000*abs(i_s) 
-        r_step = -0.01
+        r_i_s = -10000*abs(i_s) 
+        r_step = -0.01 #implement in final step
         reward = r_temp + r_i_s + r_volt + r_step
 
         self.episode_step+=1

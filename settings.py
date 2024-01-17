@@ -12,7 +12,7 @@ settings['episodes_number_test']=10 # Number of testing.
 control_settings={}
 control_settings['references']={}
 control_settings['references']['soc']=0.8; 
-control_settings['max_charging_current'] = -3
+control_settings['max_charging_current'] = -5
 
 
 # constraints    
